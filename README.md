@@ -210,6 +210,385 @@
 ## 3. 创建自己的第一个菜单
 > **如果您已经成功运行了示例程序，那么您已经具备了创建自己的菜单的条件，下面将介绍如何创建自己的菜单。**
 ---
-**如果从头开始从原理讲起，反而还会让大家觉得麻烦，所以我们直接实战，上代码。**
 
-未完待续...
+在OLED_UI框架中，菜单系统主要由两个核心结构体组成：`MenuPage`（菜单页面）和`MenuItem`（菜单项）。下面我们将通过实例来学习如何创建自己的菜单。
+
+### 3.1 基本概念
+
+1. **MenuPage（菜单页面）**：表示一个完整的菜单屏幕，包含多个菜单项。
+2. **MenuItem（菜单项）**：菜单中的单个选项，可以执行操作或进入子菜单。
+3. **MenuWindow（菜单窗口）**：用于显示临时信息或数据的弹窗。
+
+### 3.2 创建简单的列表菜单
+
+以下是创建一个简单列表菜单的步骤：
+
+#### 步骤1：定义菜单项数组
+
+首先，我们需要定义一个`MenuItem`数组，每个元素代表一个菜单项：
+
+```c
+// 定义菜单项数组
+MenuItem MyMenuItems[] = {
+    // 第一个菜单项：带回调函数的选项
+    {.General_item_text = "显示窗口", .General_callback = ShowMyWindow, .General_SubMenuPage = NULL},
+    
+    // 第二个菜单项：进入子菜单的选项
+    {.General_item_text = "设置", .General_callback = NULL, .General_SubMenuPage = &SettingsMenuPage},
+    
+    // 第三个菜单项：布尔开关选项
+    {.General_item_text = "开启功能", .General_callback = NULL, .General_SubMenuPage = NULL, .List_BoolRadioBox = &featureEnabled},
+    
+    // 第四个菜单项：整数值选项
+    {.General_item_text = "亮度", .General_callback = NULL, .General_SubMenuPage = NULL, .List_IntBox = &brightnessValue},
+    
+    // 第五个菜单项：浮点数值选项
+    {.General_item_text = "阈值", .General_callback = NULL, .General_SubMenuPage = NULL, .List_FloatBox = &thresholdValue},
+    
+    // 返回上级菜单选项
+    {.General_item_text = "[返回]", .General_callback = OLED_UI_Back, .General_SubMenuPage = NULL},
+    
+    // 终止标记：最后一个菜单项必须将General_item_text设为NULL
+    {.General_item_text = NULL}
+};
+```
+
+#### 步骤2：定义菜单页面
+
+然后，我们需要定义一个`MenuPage`结构体来表示整个菜单页面：
+
+```c
+// 定义菜单页面
+MenuPage MyMenuPage = {
+    // 基本配置
+    .General_MenuType = MENU_TYPE_LIST,            // 菜单类型：列表菜单
+    .General_CursorStyle = REVERSE_ROUNDRECTANGLE, // 光标样式：圆角矩形反色
+    .General_FontSize = OLED_UI_FONT_12,           // 字体大小：12像素
+    .General_ParentMenuPage = NULL,                // 父菜单：NULL表示这是主菜单
+    .General_LineSpace = 4,                        // 行间距：4像素
+    .General_MoveStyle = UNLINEAR,                 // 移动风格：非线性
+    .General_MovingSpeed = 4,                      // 移动速度：4
+    .General_ShowAuxiliaryFunction = NULL,         // 辅助显示函数：无
+    .General_MenuItems = MyMenuItems,              // 菜单项数组
+    
+    // 列表菜单特有配置
+    .List_MenuArea = {0, 0, OLED_WIDTH, OLED_HEIGHT}, // 菜单显示区域
+    .List_IfDrawFrame = false,                     // 是否显示边框：否
+    .List_IfDrawLinePerfix = true,                 // 是否显示前缀：是
+    .List_StartPointX = 4,                         // 列表起始点X坐标
+    .List_StartPointY = 2                          // 列表起始点Y坐标
+};
+```
+
+#### 菜单页面主要参数选项
+
+##### General_MenuType（菜单类型）可选值：
+```c
+#define MENU_TYPE_LIST    (0)  // 列表菜单
+#define MENU_TYPE_TILES   (1)  // 图标菜单  
+#define MENU_TYPE_EMPTY   (2)  // 空菜单
+```
+
+##### General_MoveStyle（移动风格）可选值：
+```c
+#define UNLINEAR      (0)  // 非线性移动
+#define PID_CURVE     (1)  // PID曲线移动
+```
+
+##### General_CursorStyle（光标样式）可选值：
+```c
+#define REVERSE_RECTANGLE        (0)  // 反色矩形
+#define REVERSE_ROUNDRECTANGLE   (1)  // 圆角反色矩形
+#define HOLLOW_RECTANGLE         (2)  // 空心矩形
+#define HOLLOW_ROUNDRECTANGLE    (3)  // 空心圆角矩形
+#define REVERSE_BLOCK            (4)  // 反色块
+#define NOT_SHOW                 (5)  // 不显示光标
+```
+
+##### General_FontSize（字体大小）可选值：
+```c
+#define OLED_UI_FONT_8    (8)   // 8号字体
+#define OLED_UI_FONT_12   (12)  // 12号字体
+#define OLED_UI_FONT_16   (16)  // 16号字体
+#define OLED_UI_FONT_20   (20)  // 20号字体
+```
+
+#### 步骤3：创建窗口（可选）
+
+如果需要在菜单项中显示窗口，可以定义窗口结构体：
+
+```c
+// 定义窗口结构体
+MenuWindow MyWindow = {
+    .General_Width = 80,                           // 窗口宽度
+    .General_Height = 28,                          // 窗口高度
+    .Text_String = "这是一个窗口",                 // 窗口文本
+    .Text_FontSize = OLED_UI_FONT_12,              // 字体大小
+    .Text_FontSideDistance = 4,                    // 文本到边缘的距离
+    .Text_FontTopDistance = 3,                     // 文本到顶部的距离
+    .General_WindowType = WINDOW_ROUNDRECTANGLE,   // 窗口类型：圆角矩形
+    .General_ContinueTime = 4.0,                   // 窗口持续时间（秒）
+    
+    // 如需显示数值，可添加以下配置
+    // .Prob_Data_Int = &value,                     // 整数值指针
+    // .Prob_Data_Float = &floatValue,              // 浮点数值指针
+    // .Prob_DataStep = 1,                          // 数值步进
+    // .Prob_MinData = 0,                           // 最小值
+    // .Prob_MaxData = 100                          // 最大值
+};
+
+// 显示窗口的回调函数
+void ShowMyWindow(void) {
+    OLED_UI_CreateWindow(&MyWindow);
+}
+```
+
+#### 窗口参数选项
+
+##### General_WindowType（窗口类型）可选值：
+```c
+#define WINDOW_RECTANGLE        (0)  // 矩形窗口
+#define WINDOW_ROUNDRECTANGLE   (1)  // 圆角矩形窗口
+```
+
+##### 数据类型设置：
+
+窗口支持绑定两种类型的数据：
+- `Prob_Data_Float`: 浮点型数据指针
+- `Prob_Data_Int`: 整型数据指针
+
+数据显示风格由系统自动根据绑定的指针类型确定：
+- `WINDOW_DATA_STYLE_FLOAT` (0): 浮点数据风格
+- `WINDOW_DATA_STYLE_INT` (1): 整型数据风格
+- `WINDOW_DATA_STYLE_NONE` (-1): 无数据风格
+
+#### 步骤4：初始化并运行菜单
+
+在主函数中初始化OLED_UI并启动菜单：
+
+```c
+#include "OLED_UI.h"
+
+// 定义全局变量
+bool featureEnabled = false;
+int16_t brightnessValue = 50;
+float thresholdValue = 0.5;
+
+int main() {
+    // 初始化OLED和其他硬件
+    // ...
+    
+    // 初始化OLED_UI并设置当前页面为我们创建的菜单
+    OLED_UI_Init(&MyMenuPage);
+    
+    while(1) {
+        // 运行OLED_UI主循环
+        OLED_UI_MainLoop();
+        
+        // 如果没有定时器中断，可以在这里直接调用中断处理函数
+        // OLED_UI_InterruptHandler();
+    }
+}
+
+// 如果有定时器中断，在中断服务函数中调用
+void TIM_IRQHandler(void) {
+    // 清除中断标志位
+    // ...
+    
+    // 调用OLED_UI中断处理函数
+    OLED_UI_InterruptHandler();
+}
+```
+
+### 3.3 创建图标菜单
+
+除了列表菜单，OLED_UI还支持图标菜单。创建图标菜单的步骤如下：
+
+#### 步骤1：定义图标数据（如果需要）
+
+```c
+// 图标数据（示例，实际使用时需要根据自己的图标数据修改）
+const uint8_t MyIcon[] = {
+    0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00,
+    // ... 更多图标数据
+};
+```
+
+#### 步骤2：定义图标菜单项
+
+```c
+// 定义图标菜单项
+MenuItem MyTilesMenuItems[] = {
+    {.General_item_text = "功能1", .General_callback = NULL, .General_SubMenuPage = &SubMenuPage1, .Tiles_Icon = Icon1},
+    {.General_item_text = "功能2", .General_callback = NULL, .General_SubMenuPage = &SubMenuPage2, .Tiles_Icon = Icon2},
+    {.General_item_text = "功能3", .General_callback = NULL, .General_SubMenuPage = NULL, .Tiles_Icon = Icon3},
+    {.General_item_text = "设置", .General_callback = NULL, .General_SubMenuPage = &SettingsMenuPage, .Tiles_Icon = SettingsIcon},
+    
+    {.General_item_text = NULL} // 终止标记
+};
+```
+
+#### 步骤3：定义图标菜单页面
+
+```c
+// 定义图标菜单页面
+MenuPage MyTilesMenuPage = {
+    // 基本配置
+    .General_MenuType = MENU_TYPE_TILES,          // 菜单类型：图标菜单
+    .General_CursorStyle = NOT_SHOW,              // 光标样式：不显示
+    .General_FontSize = OLED_UI_FONT_12,          // 字体大小：12像素
+    .General_ParentMenuPage = NULL,               // 父菜单：NULL表示这是主菜单
+    .General_LineSpace = 5,                       // 行间距
+    .General_MoveStyle = PID_CURVE,               // 移动风格：PID曲线
+    .General_MovingSpeed = 4,                     // 移动速度
+    .General_ShowAuxiliaryFunction = NULL,        // 辅助显示函数：无
+    .General_MenuItems = MyTilesMenuItems,        // 菜单项数组
+    
+    // 图标菜单特有配置
+    .Tiles_ScreenWidth = 128,                     // 屏幕宽度
+    .Tiles_ScreenHeight = 64,                     // 屏幕高度
+    .Tiles_TileWidth = 32,                        // 图标宽度
+    .Tiles_TileHeight = 32                        // 图标高度
+};
+```
+
+### 3.4 菜单设计技巧
+
+1. **菜单结构**：
+   - 保持菜单层级简单，避免过深的嵌套
+   - 主菜单适合使用图标菜单，子菜单适合使用列表菜单
+   - 在每个子菜单中添加返回选项
+
+2. **交互设计**：
+   - 使用直观的菜单项名称
+   - 对于布尔值选项，使用`.List_BoolRadioBox`字段
+   - 对于需要调整的数值，使用`.List_IntBox`或`.List_FloatBox`字段
+   - 对于需要临时显示信息的场景，使用窗口功能
+
+3. **性能优化**：
+   - 避免在菜单回调函数中执行耗时操作
+   - 对于复杂的辅助显示，考虑使用`.General_ShowAuxiliaryFunction`
+   - 合理设置`.General_MovingSpeed`以获得流畅的动画效果
+
+### 3.5 完整示例
+
+以下是一个完整的简单菜单系统示例：
+
+```c
+#include "OLED_UI.h"
+
+// 全局变量
+bool ledEnabled = false;
+int16_t brightness = 100;
+float temperature = 25.5;
+
+// 子菜单页面声明（用于前向引用）
+MenuPage SettingsMenuPage;
+
+// 窗口定义
+MenuWindow TempWindow = {
+    .General_Width = 80,
+    .General_Height = 28,
+    .Text_String = "当前温度",
+    .Text_FontSize = OLED_UI_FONT_12,
+    .Text_FontSideDistance = 4,
+    .Text_FontTopDistance = 3,
+    .General_WindowType = WINDOW_ROUNDRECTANGLE,
+    .General_ContinueTime = 3.0,
+    .Prob_Data_Float = &temperature,
+    .Prob_DataStep = 0.5,
+    .Prob_MinData = 0.0,
+    .Prob_MaxData = 100.0,
+    .Prob_BottomDistance = 3,
+    .Prob_LineHeight = 8,
+    .Prob_SideDistance = 4
+};
+
+// 窗口显示函数
+void ShowTempWindow(void) {
+    OLED_UI_CreateWindow(&TempWindow);
+}
+
+// 主菜单项
+MenuItem MainMenuItems[] = {
+    {.General_item_text = "显示温度", .General_callback = ShowTempWindow, .General_SubMenuPage = NULL},
+    {.General_item_text = "设置", .General_callback = NULL, .General_SubMenuPage = &SettingsMenuPage},
+    {.General_item_text = "[返回]", .General_callback = OLED_UI_Back, .General_SubMenuPage = NULL},
+    {.General_item_text = NULL}
+};
+
+// 设置菜单项
+MenuItem SettingsMenuItems[] = {
+    {.General_item_text = "LED开关", .General_callback = NULL, .General_SubMenuPage = NULL, .List_BoolRadioBox = &ledEnabled},
+    {.General_item_text = "亮度调节", .General_callback = NULL, .General_SubMenuPage = NULL, .List_IntBox = &brightness},
+    {.General_item_text = "[返回]", .General_callback = OLED_UI_Back, .General_SubMenuPage = NULL},
+    {.General_item_text = NULL}
+};
+
+// 主菜单页面
+MenuPage MainMenuPage = {
+    .General_MenuType = MENU_TYPE_LIST,
+    .General_CursorStyle = REVERSE_ROUNDRECTANGLE,
+    .General_FontSize = OLED_UI_FONT_12,
+    .General_ParentMenuPage = NULL,
+    .General_LineSpace = 4,
+    .General_MoveStyle = UNLINEAR,
+    .General_MovingSpeed = 4,
+    .General_ShowAuxiliaryFunction = NULL,
+    .General_MenuItems = MainMenuItems,
+    .List_MenuArea = {0, 0, OLED_WIDTH, OLED_HEIGHT},
+    .List_IfDrawFrame = false,
+    .List_IfDrawLinePerfix = true,
+    .List_StartPointX = 4,
+    .List_StartPointY = 2
+};
+
+// 设置菜单页面
+MenuPage SettingsMenuPage = {
+    .General_MenuType = MENU_TYPE_LIST,
+    .General_CursorStyle = REVERSE_ROUNDRECTANGLE,
+    .General_FontSize = OLED_UI_FONT_12,
+    .General_ParentMenuPage = &MainMenuPage,
+    .General_LineSpace = 4,
+    .General_MoveStyle = UNLINEAR,
+    .General_MovingSpeed = 4,
+    .General_ShowAuxiliaryFunction = NULL,
+    .General_MenuItems = SettingsMenuItems,
+    .List_MenuArea = {0, 0, OLED_WIDTH, OLED_HEIGHT},
+    .List_IfDrawFrame = false,
+    .List_IfDrawLinePerfix = true,
+    .List_StartPointX = 4,
+    .List_StartPointY = 2
+};
+
+int main() {
+    // 初始化OLED和其他硬件
+    // ...
+    
+    // 初始化OLED_UI
+    OLED_UI_Init(&MainMenuPage);
+    
+    while(1) {
+        // 主循环
+        OLED_UI_MainLoop();
+        
+        // 这里可以添加其他任务
+        // ...
+    }
+}
+```
+
+### 3.6 注意事项
+
+1. **菜单项终止**：每个菜单项数组的最后一个元素必须将`.General_item_text`设为`NULL`，作为数组结束的标记。
+
+2. **菜单层级**：确保正确设置`.General_ParentMenuPage`，以便返回功能正常工作。
+
+3. **回调函数**：回调函数应该保持简洁，避免在其中执行耗时操作，以免影响UI响应速度。
+
+4. **内存使用**：如果在资源受限的设备上使用，请注意内存使用情况，避免定义过多或过大的菜单结构。
+
+5. **字符编码**：确保代码文件使用正确的字符编码（UTF-8或GB2312），并在`OLED_Fonts.h`中设置相应的`OLED_CHN_CHAR_WIDTH`宏。
+
+通过以上步骤，您可以创建自己的OLED_UI菜单系统，实现各种交互界面。如果您需要更复杂的功能，可以参考示例代码中的其他实现方式。

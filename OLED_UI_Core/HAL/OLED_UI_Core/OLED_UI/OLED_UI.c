@@ -512,7 +512,10 @@ int16_t CalcStringWidth(int16_t ChineseFont, int16_t ASCIIFont, const char *form
     while (*ptr != '\0') {
         if ((unsigned char)*ptr & 0x80) { // 处理中文字符
             StringLength += ChineseFont;
-            ptr += 2;
+            if ((*ptr & 0xF0) == 0xF0) ptr += 4;      // 4字节字符
+        	else if ((*ptr & 0xE0) == 0xE0) ptr += 3;  // 3字节中文 
+        	else if ((*ptr & 0xC0) == 0xC0) ptr += 2;  // 2字节字符
+        	else ptr += 2;  // fallback 
         } else {
             StringLength += ASCIIFont;
             ptr++;
